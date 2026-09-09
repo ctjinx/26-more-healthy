@@ -9,7 +9,6 @@
     body { background-color: #f5f7fb; color: #333; padding-bottom: 20px; }
     .header { background: #2b6cb0; color: white; padding: 18px; text-align: center; font-size: 1.2rem; font-weight: bold; }
     
-    /* 탭 스타일 */
     .nav-tabs { display: flex; background: white; border-bottom: 1px solid #e2e8f0; }
     .tab-btn { flex: 1; padding: 14px; text-align: center; border: none; background: none; font-size: 1rem; font-weight: bold; color: #718096; cursor: pointer; }
     .tab-btn.active { color: #2b6cb0; border-bottom: 3px solid #2b6cb0; }
@@ -20,13 +19,15 @@
     
     .section-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #4a5568; }
     
-    /* 시간 선택 그리드 */
+    .site-selector { display: flex; gap: 8px; margin-bottom: 20px; }
+    .site-btn { flex: 1; padding: 12px; border: 1px solid #cbd5e0; border-radius: 8px; background: white; font-size: 0.95rem; font-weight: bold; cursor: pointer; text-align: center; color: #4a5568; transition: all 0.2s; }
+    .site-btn.selected { background: #3182ce; color: white; border-color: #3182ce; }
+    
     .time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
     .time-btn { padding: 12px 6px; border: 1px solid #cbd5e0; border-radius: 8px; background: white; font-size: 0.9rem; cursor: pointer; text-align: center; transition: all 0.2s; }
     .time-btn.selected { background: #2b6cb0; color: white; border-color: #2b6cb0; font-weight: bold; }
     .time-btn.disabled { background: #edf2f7; color: #a0aec0; border-color: #e2e8f0; cursor: not-allowed; text-decoration: line-through; }
     
-    /* 폼 입력 스타일 */
     .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #4a5568; font-weight: bold; }
     .form-group input { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 1rem; }
@@ -35,7 +36,6 @@
     .submit-btn { width: 100%; padding: 14px; background: #2b6cb0; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
     .submit-btn:disabled { background: #a0aec0; }
     
-    /* 예약 현황 리스트 */
     .status-list { background: white; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
     .status-item { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; align-items: center; }
     .status-item:last-child { border-bottom: none; }
@@ -49,19 +49,25 @@
 
   <div class="header">업무 프로그램 신청</div>
 
-  <!-- 탭 메뉴 -->
   <div class="nav-tabs">
     <button class="tab-btn active" id="btnApplyTab" onclick="switchTab('applyTab')">신청하기</button>
     <button class="tab-btn" id="btnStatusTab" onclick="switchTab('statusTab')">전체 현황</button>
   </div>
 
   <div class="container">
-    <!-- 1. 신청하기 탭 -->
+    <!-- 신청하기 탭 -->
     <div id="applyTab" class="tab-content active">
-      <div class="section-title">1. 시간 선택 (15분 단위 / 시간당 1명)</div>
+      <div class="section-title">1. 사업장 선택</div>
+      <div class="site-selector">
+        <button type="button" class="site-btn selected" onclick="selectSite('서울', this)">서울</button>
+        <button type="button" class="site-btn" onclick="selectSite('가산', this)">가산</button>
+        <button type="button" class="site-btn" onclick="selectSite('판교', this)">판교</button>
+      </div>
+
+      <div class="section-title">2. 시간 선택 (15분 단위 / 시간당 1명)</div>
       <div class="time-grid" id="timeGrid"></div>
 
-      <div class="section-title">2. 신청자 정보 입력</div>
+      <div class="section-title">3. 신청자 정보 입력</div>
       <form id="applyForm" onsubmit="submitForm(event)">
         <div class="form-group">
           <label for="empId">사번</label>
@@ -75,27 +81,37 @@
       </form>
     </div>
 
-    <!-- 2. 전체 현황 탭 -->
+    <!-- 전체 현황 탭 -->
     <div id="statusTab" class="tab-content">
-      <div class="section-title">전체 예약 현황</div>
+      <div class="section-title">사업장별 현황 보기</div>
+      <div class="site-selector">
+        <button type="button" class="site-btn selected" id="statusSiteSeoul" onclick="selectStatusSite('서울', this)">서울</button>
+        <button type="button" class="site-btn" onclick="selectStatusSite('가산', this)">가산</button>
+        <button type="button" class="site-btn" onclick="selectStatusSite('판교', this)">판교</button>
+      </div>
+
+      <div class="section-title" id="statusTitle">서울 예약 현황</div>
       <div class="status-list" id="statusList"></div>
     </div>
   </div>
 
   <script>
-    // ★ 새로 배포한 Google Apps Script 웹 앱 URL을 넣으세요 ★
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzYWYvJVJwPG8fL2ynvPx9U-t3mdPTkqOapHKDidRkVC6SjLiyBn8V0X0P_I8t8HF0/exec";
+    // ★ 본인의 Google Apps Script 웹 앱 URL만 입력하세요 ★
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyweeeORXohL_WUcsmSpfNnBVjqbPeXxnX0uvfQ5rxyh9G2g_t1JKc-6v5qfoB_hqAH/exec";
 
+    let selectedSite = "서울";
+    let selectedStatusSite = "서울";
     let selectedTime = null;
-    let bookedSlots = new Set();
-    let bookingData = {};
+    
+    let bookedSlotsBySite = { "서울": new Set(), "가산": new Set(), "판교": new Set() };
+    let bookingDataBySite = { "서울": {}, "가산": {}, "판교": {} };
 
     function generateTimeSlots() {
       const slots = [];
       for (let h = 9; h < 16; h++) {
         for (let m = 0; m < 60; m += 15) {
           const timeNum = h * 100 + m;
-          if (timeNum >= 1130 && timeNum < 1300) continue; // 점심시간 제외
+          if (timeNum >= 1130 && timeNum < 1300) continue;
           const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
           slots.push(timeStr);
         }
@@ -111,30 +127,58 @@
       renderStatusList();
     }
 
-    // 캐시 방지(t=Timestamp)를 포함하여 구글 시트에서 최신 데이터 수집
     async function fetchBookings() {
       try {
-        const cacheBuster = new Date().getTime();
-        const response = await fetch(`${GAS_URL}?t=${cacheBuster}`);
+        const response = await fetch(`${GAS_URL}?t=${new Date().getTime()}`);
         const result = await response.json();
-        
-        if (result.status === "success") {
-          bookedSlots.clear();
-          bookingData = {};
-          result.bookings.forEach(b => {
-            const cleanSlot = String(b.timeSlot).trim();
-            bookedSlots.add(cleanSlot);
-            bookingData[cleanSlot] = b;
+
+        ["서울", "가산", "판교"].forEach(s => {
+          bookedSlotsBySite[s] = new Set();
+          bookingDataBySite[s] = {};
+        });
+
+        if (result.status === "success" && Array.isArray(result.data)) {
+          result.data.forEach(item => {
+            const siteVal = item.site;
+            const slotVal = item.timeSlot;
+
+            if (siteVal && slotVal && bookedSlotsBySite[siteVal]) {
+              bookedSlotsBySite[siteVal].add(slotVal);
+              bookingDataBySite[siteVal][slotVal] = item;
+            }
           });
         }
       } catch (err) {
-        console.error("데이터 조회 중 오류 발생:", err);
+        console.error("데이터 읽기 오류:", err);
       }
+    }
+
+    function selectSite(site, btn) {
+      document.querySelectorAll("#applyTab .site-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      selectedSite = site;
+      selectedTime = null;
+      
+      const submitBtn = document.getElementById("submitBtn");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "시간을 선택해주세요";
+
+      renderTimeGrid();
+    }
+
+    function selectStatusSite(site, btn) {
+      document.querySelectorAll("#statusTab .site-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      selectedStatusSite = site;
+      document.getElementById("statusTitle").textContent = `${site} 예약 현황`;
+      renderStatusList();
     }
 
     function renderTimeGrid() {
       const grid = document.getElementById("timeGrid");
       grid.innerHTML = "";
+
+      const currentBookedSlots = bookedSlotsBySite[selectedSite] || new Set();
 
       timeSlots.forEach(slot => {
         const btn = document.createElement("button");
@@ -142,7 +186,7 @@
         btn.className = "time-btn";
         btn.textContent = slot;
 
-        if (bookedSlots.has(slot)) {
+        if (currentBookedSlots.has(slot)) {
           btn.classList.add("disabled");
           btn.textContent += " (마감)";
           btn.disabled = true;
@@ -165,19 +209,22 @@
 
       const submitBtn = document.getElementById("submitBtn");
       submitBtn.disabled = false;
-      submitBtn.textContent = `${slot} 신청하기`;
+      submitBtn.textContent = `[${selectedSite}] ${slot} 신청하기`;
     }
 
     function renderStatusList() {
       const list = document.getElementById("statusList");
       list.innerHTML = "";
 
+      const currentBookedSlots = bookedSlotsBySite[selectedStatusSite] || new Set();
+      const currentBookingData = bookingDataBySite[selectedStatusSite] || {};
+
       timeSlots.forEach(slot => {
         const item = document.createElement("div");
         item.className = "status-item";
 
-        const isBooked = bookedSlots.has(slot);
-        const info = bookingData[slot];
+        const isBooked = currentBookedSlots.has(slot);
+        const info = currentBookingData[slot];
 
         item.innerHTML = `
           <span class="status-time">${slot}</span>
@@ -205,19 +252,18 @@
         const response = await fetch(GAS_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ timeSlot: selectedTime, empId: empId, name: name })
+          body: JSON.stringify({ site: selectedSite, timeSlot: selectedTime, empId: empId, name: name })
         });
 
         const result = await response.json();
 
         if (result.status === "success") {
-          alert(`[${selectedTime}] 예약이 완료되었습니다.`);
+          alert(`[${selectedSite}] ${selectedTime} 예약이 완료되었습니다.`);
           selectedTime = null;
           document.getElementById("applyForm").reset();
           submitBtn.textContent = "시간을 선택해주세요";
           submitBtn.disabled = true;
           
-          // 데이터 재조회 및 화면 즉시 갱신
           await init();
         } else {
           alert(result.message || "예약에 실패했습니다.");
@@ -227,7 +273,7 @@
         alert("신청 처리 중 오류가 발생했습니다.");
         console.error(err);
         submitBtn.disabled = false;
-        submitBtn.textContent = `${selectedTime} 신청하기`;
+        submitBtn.textContent = `[${selectedSite}] ${selectedTime} 신청하기`;
       }
     }
 
