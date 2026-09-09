@@ -59,9 +59,7 @@
     <!-- 1. 신청하기 탭 -->
     <div id="applyTab" class="tab-content active">
       <div class="section-title">1. 시간 선택 (15분 단위 / 시간당 1명)</div>
-      <div class="time-grid" id="timeGrid">
-        <!-- 시간 버튼 자동 생성 -->
-      </div>
+      <div class="time-grid" id="timeGrid"></div>
 
       <div class="section-title">2. 신청자 정보 입력</div>
       <form id="applyForm" onsubmit="submitForm(event)">
@@ -80,15 +78,13 @@
     <!-- 2. 전체 현황 탭 -->
     <div id="statusTab" class="tab-content">
       <div class="section-title">전체 예약 현황</div>
-      <div class="status-list" id="statusList">
-        <!-- 현황 리스트 자동 생성 -->
-      </div>
+      <div class="status-list" id="statusList"></div>
     </div>
   </div>
 
   <script>
-    // ★ 본인의 Google Apps Script 웹 앱 URL을 넣으세요 ★
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxY7q5PdSY9YlwzZuhYZD5GjsnuMG3MeJWx45ygPe5WiSCMAa6rHWTZvqyGDaj47qS9/exec";
+    // ★ 새로 배포한 Google Apps Script 웹 앱 URL을 넣으세요 ★
+    const GAS_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL";
 
     let selectedTime = null;
     let bookedSlots = new Set();
@@ -115,16 +111,20 @@
       renderStatusList();
     }
 
+    // 캐시 방지(t=Timestamp)를 포함하여 구글 시트에서 최신 데이터 수집
     async function fetchBookings() {
       try {
-        const response = await fetch(GAS_URL);
+        const cacheBuster = new Date().getTime();
+        const response = await fetch(`${GAS_URL}?t=${cacheBuster}`);
         const result = await response.json();
+        
         if (result.status === "success") {
           bookedSlots.clear();
           bookingData = {};
           result.bookings.forEach(b => {
-            bookedSlots.add(b.timeSlot);
-            bookingData[b.timeSlot] = b;
+            const cleanSlot = String(b.timeSlot).trim();
+            bookedSlots.add(cleanSlot);
+            bookingData[cleanSlot] = b;
           });
         }
       } catch (err) {
@@ -202,7 +202,6 @@
       submitBtn.textContent = "처리 중...";
 
       try {
-        // text/plain 타겟으로 보내 CORS 이슈 회피
         const response = await fetch(GAS_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -212,20 +211,20 @@
         const result = await response.json();
 
         if (result.status === "success") {
-          alert(`[${selectedTime}] 예약이 정상적으로 완료되었습니다.`);
+          alert(`[${selectedTime}] 예약이 완료되었습니다.`);
           selectedTime = null;
           document.getElementById("applyForm").reset();
           submitBtn.textContent = "시간을 선택해주세요";
           submitBtn.disabled = true;
           
-          // 데이터 재조회 및 화면 갱신
+          // 데이터 재조회 및 화면 즉시 갱신
           await init();
         } else {
           alert(result.message || "예약에 실패했습니다.");
           await init();
         }
       } catch (err) {
-        alert("신청 처리 중 오류가 발생했습니다. 다시 시도해 주세요.");
+        alert("신청 처리 중 오류가 발생했습니다.");
         console.error(err);
         submitBtn.disabled = false;
         submitBtn.textContent = `${selectedTime} 신청하기`;
@@ -244,11 +243,9 @@
         document.getElementById("btnStatusTab").classList.add("active");
       }
 
-      // 탭 이동 시 최신 예약 내역 다시 로드
       init();
     }
 
-    // 초기 실행
     init();
   </script>
 </body>
