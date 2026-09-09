@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>업무 프로그램 신청</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; }
+    body { background-color: #f5f7fb; color: #333; padding-bottom: 20px; }
+    .header { background: #2b6cb0; color: white; padding: 18px; text-align: center; font-size: 1.2rem; font-weight: bold; }
+    
+    /* 탭 스타일 */
+    .nav-tabs { display: flex; background: white; border-bottom: 1px solid #e2e8f0; }
+    .tab-btn { flex: 1; padding: 14px; text-align: center; border: none; background: none; font-size: 1rem; font-weight: bold; color: #718096; cursor: pointer; }
+    .tab-btn.active { color: #2b6cb0; border-bottom: 3px solid #2b6cb0; }
+    
+    .container { padding: 16px; max-width: 500px; margin: 0 auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .section-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #4a5568; }
+    
+    /* 시간 선택 그리드 */
+    .time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+    .time-btn { padding: 12px 6px; border: 1px solid #cbd5e0; border-radius: 8px; background: white; font-size: 0.9rem; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .time-btn.selected { background: #2b6cb0; color: white; border-color: #2b6cb0; font-weight: bold; }
+    .time-btn.disabled { background: #edf2f7; color: #a0aec0; border-color: #e2e8f0; cursor: not-allowed; text-decoration: line-through; }
+    
+    /* 폼 입력 스타일 */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #4a5568; font-weight: bold; }
+    .form-group input { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 1rem; }
+    .form-group input:focus { border-color: #2b6cb0; outline: none; }
+    
+    .submit-btn { width: 100%; padding: 14px; background: #2b6cb0; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .submit-btn:disabled { background: #a0aec0; }
+    
+    /* 예약 현황 리스트 */
+    .status-list { background: white; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
+    .status-item { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #edf2f7; font-size: 0.9rem; align-items: center; }
+    .status-item:last-child { border-bottom: none; }
+    .status-time { font-weight: bold; color: #2d3748; }
+    .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .badge-booked { background: #feebc8; color: #c05621; }
+    .badge-empty { background: #e6fffa; color: #234e52; }
+  </style>
+</head>
+<body>
+
+  <div class="header">업무 프로그램 신청</div>
+
+  <!-- 탭 메뉴 -->
+  <div class="nav-tabs">
+    <button class="tab-btn active" id="btnApplyTab" onclick="switchTab('applyTab')">신청하기</button>
+    <button class="tab-btn" id="btnStatusTab" onclick="switchTab('statusTab')">전체 현황</button>
+  </div>
+
+  <div class="container">
+    <!-- 1. 신청하기 탭 -->
+    <div id="applyTab" class="tab-content active">
+      <div class="section-title">1. 시간 선택 (15분 단위 / 시간당 1명)</div>
+      <div class="time-grid" id="timeGrid">
+        <!-- 시간 버튼 자동 생성 -->
+      </div>
+
+      <div class="section-title">2. 신청자 정보 입력</div>
+      <form id="applyForm" onsubmit="submitForm(event)">
+        <div class="form-group">
+          <label for="empId">사번</label>
+          <input type="text" id="empId" placeholder="사번을 입력하세요" required>
+        </div>
+        <div class="form-group">
+          <label for="empName">성명</label>
+          <input type="text" id="empName" placeholder="성명을 입력하세요" required>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn" disabled>시간을 선택해주세요</button>
+      </form>
+    </div>
+
+    <!-- 2. 전체 현황 탭 -->
+    <div id="statusTab" class="tab-content">
+      <div class="section-title">전체 예약 현황</div>
+      <div class="status-list" id="statusList">
+        <!-- 현황 리스트 자동 생성 -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ★ 본인의 Google Apps Script 웹 앱 URL을 넣으세요 ★
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxY7q5PdSY9YlwzZuhYZD5GjsnuMG3MeJWx45ygPe5WiSCMAa6rHWTZvqyGDaj47qS9/exec";
+
+    let selectedTime = null;
+    let bookedSlots = new Set();
+    let bookingData = {};
+
+    function generateTimeSlots() {
+      const slots = [];
+      for (let h = 9; h < 16; h++) {
+        for (let m = 0; m < 60; m += 15) {
+          const timeNum = h * 100 + m;
+          if (timeNum >= 1130 && timeNum < 1300) continue; // 점심시간 제외
+          const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+          slots.push(timeStr);
+        }
+      }
+      return slots;
+    }
+
+    const timeSlots = generateTimeSlots();
+
+    async function init() {
+      await fetchBookings();
+      renderTimeGrid();
+      renderStatusList();
+    }
+
+    async function fetchBookings() {
+      try {
+        const response = await fetch(GAS_URL);
+        const result = await response.json();
+        if (result.status === "success") {
+          bookedSlots.clear();
+          bookingData = {};
+          result.bookings.forEach(b => {
+            bookedSlots.add(b.timeSlot);
+            bookingData[b.timeSlot] = b;
+          });
+        }
+      } catch (err) {
+        console.error("데이터 조회 중 오류 발생:", err);
+      }
+    }
+
+    function renderTimeGrid() {
+      const grid = document.getElementById("timeGrid");
+      grid.innerHTML = "";
+
+      timeSlots.forEach(slot => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "time-btn";
+        btn.textContent = slot;
+
+        if (bookedSlots.has(slot)) {
+          btn.classList.add("disabled");
+          btn.textContent += " (마감)";
+          btn.disabled = true;
+        } else {
+          btn.onclick = () => selectTime(slot, btn);
+        }
+
+        if (selectedTime === slot) {
+          btn.classList.add("selected");
+        }
+
+        grid.appendChild(btn);
+      });
+    }
+
+    function selectTime(slot, element) {
+      document.querySelectorAll(".time-btn").forEach(b => b.classList.remove("selected"));
+      selectedTime = slot;
+      element.classList.add("selected");
+
+      const submitBtn = document.getElementById("submitBtn");
+      submitBtn.disabled = false;
+      submitBtn.textContent = `${slot} 신청하기`;
+    }
+
+    function renderStatusList() {
+      const list = document.getElementById("statusList");
+      list.innerHTML = "";
+
+      timeSlots.forEach(slot => {
+        const item = document.createElement("div");
+        item.className = "status-item";
+
+        const isBooked = bookedSlots.has(slot);
+        const info = bookingData[slot];
+
+        item.innerHTML = `
+          <span class="status-time">${slot}</span>
+          ${isBooked 
+            ? `<span class="status-badge badge-booked">${info ? info.name + ' (' + info.empId + ')' : '예약완료'}</span>`
+            : `<span class="status-badge badge-empty">신청 가능</span>`
+          }
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    async function submitForm(e) {
+      e.preventDefault();
+      if (!selectedTime) return alert("시간을 선택해주세요.");
+
+      const empId = document.getElementById("empId").value.trim();
+      const name = document.getElementById("empName").value.trim();
+
+      const submitBtn = document.getElementById("submitBtn");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "처리 중...";
+
+      try {
+        // text/plain 타겟으로 보내 CORS 이슈 회피
+        const response = await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ timeSlot: selectedTime, empId: empId, name: name })
+        });
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+          alert(`[${selectedTime}] 예약이 정상적으로 완료되었습니다.`);
+          selectedTime = null;
+          document.getElementById("applyForm").reset();
+          submitBtn.textContent = "시간을 선택해주세요";
+          submitBtn.disabled = true;
+          
+          // 데이터 재조회 및 화면 갱신
+          await init();
+        } else {
+          alert(result.message || "예약에 실패했습니다.");
+          await init();
+        }
+      } catch (err) {
+        alert("신청 처리 중 오류가 발생했습니다. 다시 시도해 주세요.");
+        console.error(err);
+        submitBtn.disabled = false;
+        submitBtn.textContent = `${selectedTime} 신청하기`;
+      }
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(tc => tc.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(tb => tb.classList.remove("active"));
+
+      document.getElementById(tabId).classList.add("active");
+      
+      if (tabId === 'applyTab') {
+        document.getElementById("btnApplyTab").classList.add("active");
+      } else {
+        document.getElementById("btnStatusTab").classList.add("active");
+      }
+
+      // 탭 이동 시 최신 예약 내역 다시 로드
+      init();
+    }
+
+    // 초기 실행
+    init();
+  </script>
+</body>
+</html>
