@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>'26 건강증진 프로그램 신청</title>
+  <title>업무 프로그램 신청</title>
   <style>
     * { box-sizing: border-box; font-family: 'Noto Sans KR', sans-serif; margin: 0; padding: 0; }
     body { background-color: #f5f7fb; color: #333; padding-bottom: 20px; }
@@ -47,11 +47,11 @@
 </head>
 <body>
 
-  <div class="header">'26 건강증진 프로그램 신청</div>
+  <div class="header">업무 프로그램 신청</div>
 
   <div class="nav-tabs">
     <button class="tab-btn active" id="btnApplyTab" onclick="switchTab('applyTab')">신청하기</button>
-    <button class="tab-btn" id="btnStatusTab" onclick="switchTab('statusTab')">신청현황</button>
+    <button class="tab-btn" id="btnStatusTab" onclick="switchTab('statusTab')">전체 현황</button>
   </div>
 
   <div class="container">
@@ -64,7 +64,7 @@
         <button type="button" class="site-btn" onclick="selectSite('판교', this)">판교</button>
       </div>
 
-      <div class="section-title">2. 시간 선택 (1명/15분 단위)</div>
+      <div class="section-title">2. 시간 선택 (15분 단위 / 시간당 1명)</div>
       <div class="time-grid" id="timeGrid"></div>
 
       <div class="section-title">3. 신청자 정보 입력</div>
@@ -72,6 +72,10 @@
         <div class="form-group">
           <label for="empId">사번</label>
           <input type="text" id="empId" placeholder="사번을 입력하세요" required>
+        </div>
+        <div class="form-group">
+          <label for="empEmail">이메일</label>
+          <input type="email" id="empEmail" placeholder="이메일주소를 입력하세요 (example@company.com)" required>
         </div>
         <div class="form-group">
           <label for="empName">성명</label>
@@ -96,8 +100,8 @@
   </div>
 
   <script>
-    // ★ 본인의 Google Apps Script 웹 앱 URL만 입력하세요 ★
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyweeeORXohL_WUcsmSpfNnBVjqbPeXxnX0uvfQ5rxyh9G2g_t1JKc-6v5qfoB_hqAH/exec";
+    // ★ 본인의 Google Apps Script 웹 앱 URL을 입력하세요 ★
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzrDdeHSFpGcmVitXh44jB27r4Zg3Vz3i6p5qkmJMO3SLsVlufsEZgviYqzzJIZRCha/exec";
 
     let selectedSite = "서울";
     let selectedStatusSite = "서울";
@@ -217,7 +221,7 @@
       list.innerHTML = "";
 
       const currentBookedSlots = bookedSlotsBySite[selectedStatusSite] || new Set();
-      const currentBookingData = bookingDataBySite[selectedStatusSite] || {};
+      const currentBookingData = bookingDataBySite[selectedStatusStatusSite] || bookingDataBySite[selectedStatusSite] || {};
 
       timeSlots.forEach(slot => {
         const item = document.createElement("div");
@@ -242,6 +246,7 @@
       if (!selectedTime) return alert("시간을 선택해주세요.");
 
       const empId = document.getElementById("empId").value.trim();
+      const email = document.getElementById("empEmail").value.trim();
       const name = document.getElementById("empName").value.trim();
 
       const submitBtn = document.getElementById("submitBtn");
@@ -252,7 +257,7 @@
         const response = await fetch(GAS_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ site: selectedSite, timeSlot: selectedTime, empId: empId, name: name })
+          body: JSON.stringify({ site: selectedSite, timeSlot: selectedTime, empId: empId, email: email, name: name })
         });
 
         const result = await response.json();
